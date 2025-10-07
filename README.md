@@ -28,7 +28,7 @@ The Dynamic Pricing Model App is built using Streamlit, a Python library for cre
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/Mohshaikh23/Dynamic-Pricing-Strategy.git
+git clone https://github.com/harshhhxd/Dynamic-Pricing-Strategy.git
 ```
 
 2. Navigate to the project directory:
@@ -55,7 +55,6 @@ streamlit run app.py
 
 The app will open in your default web browser. Use the sliders and input fields to adjust the parameters and get the predicted ride price.
 Screenshots
-Include any relevant screenshots or GIFs of your app in action here.
 
 License
 This project is licensed under the MIT License.
