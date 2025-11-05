@@ -1,0 +1,67 @@
+name: Train and Save Dynamic Pricing Model
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # allows manual run from Actions tab
+
+jobs:
+  train-model:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Train model and save output
+        run: |
+          echo "🏋️‍♂️ Training Dynamic Pricing Model..."
+          python app_streamlit.py || true  # skip Streamlit UI errors
+          python - <<'EOF'
+import pandas as pd, numpy as np, joblib
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import train_test_split
+
+data = pd.read_csv("dynamic_pricing.csv")
+data["Vehicle_Type"] = data["Vehicle_Type"].map({"Premium": 1, "Economy": 0}).fillna(0).astype(int)
+eps = 1e-6
+p_high_riders = np.percentile(data['Number_of_Riders'], 75)
+p_low_riders = np.percentile(data['Number_of_Riders'], 25)
+p_high_drivers = np.percentile(data['Number_of_Drivers'], 75)
+p_low_drivers = np.percentile(data['Number_of_Drivers'], 25)
+data['demand_multiplier'] = np.where(
+    data['Number_of_Riders'] > p_high_riders,
+    data['Number_of_Riders'] / p_high_riders,
+    data['Number_of_Riders'] / max(p_low_riders, eps))
+data['supply_multiplier'] = np.where(
+    data['Number_of_Drivers'] > p_low_drivers,
+    p_high_drivers / data['Number_of_Drivers'].replace(0, eps),
+    p_low_drivers / data['Number_of_Drivers'].replace(0, eps))
+data['adjusted_ride_cost'] = data['Historical_Cost_of_Ride'] * (
+    np.maximum(data['demand_multiplier'], 0.8) * np.maximum(data['supply_multiplier'], 0.8))
+X = data[["Number_of_Riders","Number_of_Drivers","Vehicle_Type","Expected_Ride_Duration"]].values
+y = data["adjusted_ride_cost"].values
+model = RandomForestRegressor(random_state=42)
+model.fit(X, y)
+joblib.dump(model, "model.joblib")
+print("✅ Model trained and saved successfully!")
+EOF
+
+      - name: Commit and push updated model
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add model.joblib
+          git commit -m "🤖 Auto-trained model via GitHub Actions" || echo "No changes to commit"
+          git push
