@@ -3,3 +3,7 @@ streamlit
 plotly
 numpy
 scikit-learn
+statsmodel 
+joblib
+os
+numpy
